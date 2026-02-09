@@ -88,7 +88,7 @@ export default function HomePage() {
       {/* Add today's taste shortcut */}
       <button
         onClick={() => setPickerOpen(true)}
-        className="flex items-center gap-2 text-sm text-warm-600 mb-5"
+        className="flex items-center gap-2 text-sm font-medium text-warm-700 bg-warm-100 hover:bg-warm-200 px-4 py-2.5 rounded-xl transition-colors mb-5"
       >
         <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
           <path

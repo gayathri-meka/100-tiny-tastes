@@ -175,10 +175,10 @@ export default function CalendarPage() {
               }`}
             >
               <span
-                className={`text-[10px] leading-none ${
+                className={`text-xs font-medium leading-none ${
                   isToday
                     ? "font-bold text-warm-700"
-                    : "text-stone-500"
+                    : "text-stone-700"
                 }`}
               >
                 {day}
