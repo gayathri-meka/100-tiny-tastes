@@ -137,7 +137,7 @@ export default function CalendarPage() {
       <div className="grid grid-cols-7 gap-px bg-warm-100 rounded-lg overflow-hidden border border-warm-100">
         {/* Empty cells for offset */}
         {Array.from({ length: firstDay }).map((_, i) => (
-          <div key={`empty-${i}`} className="bg-warm-50 h-12" />
+          <div key={`empty-${i}`} className="bg-warm-50 h-14" />
         ))}
 
         {/* Day cells */}
@@ -145,9 +145,20 @@ export default function CalendarPage() {
           const day = i + 1;
           const dateKey = formatDateKey(year, month, day);
           const dayLogs = mounted ? (logsByDate[dateKey] || []) : [];
-          const hasLogs = dayLogs.length > 0;
           const isToday = dateKey === todayKey;
           const isSelected = dateKey === selectedDate;
+
+          // Deduplicate by foodId to get unique foods for that day
+          const uniqueFoods: { id: string; emoji: string }[] = [];
+          const seen = new Set<string>();
+          for (const log of dayLogs) {
+            if (!seen.has(log.foodId)) {
+              seen.add(log.foodId);
+              const f = getFoodById(log.foodId);
+              if (f) uniqueFoods.push({ id: f.id, emoji: f.emoji });
+            }
+          }
+          const overflow = uniqueFoods.length - 3;
 
           return (
             <button
@@ -155,7 +166,7 @@ export default function CalendarPage() {
               onClick={() =>
                 setSelectedDate(isSelected ? null : dateKey)
               }
-              className={`h-12 flex flex-col items-center justify-center relative transition-colors ${
+              className={`h-14 flex flex-col items-center justify-start pt-1 relative transition-colors ${
                 isSelected
                   ? "bg-warm-200"
                   : isToday
@@ -164,24 +175,25 @@ export default function CalendarPage() {
               }`}
             >
               <span
-                className={`text-xs ${
+                className={`text-[10px] leading-none ${
                   isToday
                     ? "font-bold text-warm-700"
-                    : "text-stone-600"
+                    : "text-stone-500"
                 }`}
               >
                 {day}
               </span>
-              {hasLogs && (
-                <div className="flex gap-0.5 mt-0.5">
-                  {dayLogs.slice(0, 3).map((_, j) => (
-                    <div
-                      key={j}
-                      className="w-1 h-1 rounded-full bg-sage-500"
-                    />
+              {uniqueFoods.length > 0 && (
+                <div className="flex items-center gap-px mt-0.5 flex-wrap justify-center">
+                  {uniqueFoods.slice(0, 3).map((f) => (
+                    <span key={f.id} className="text-[10px] leading-none">
+                      {f.emoji}
+                    </span>
                   ))}
-                  {dayLogs.length > 3 && (
-                    <div className="w-1 h-1 rounded-full bg-sage-300" />
+                  {overflow > 0 && (
+                    <span className="text-[8px] text-stone-400 leading-none">
+                      +{overflow}
+                    </span>
                   )}
                 </div>
               )}
@@ -193,7 +205,7 @@ export default function CalendarPage() {
         {Array.from({
           length: (7 - ((firstDay + daysInMonth) % 7)) % 7,
         }).map((_, i) => (
-          <div key={`trail-${i}`} className="bg-warm-50 h-12" />
+          <div key={`trail-${i}`} className="bg-warm-50 h-14" />
         ))}
       </div>
 

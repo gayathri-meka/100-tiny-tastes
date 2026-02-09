@@ -1,14 +1,19 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { foods, categoryLabels, categoryOrder } from "@/lib/foods";
 import { getTriedFoodIds } from "@/lib/storage";
 import { Food } from "@/lib/types";
 import Link from "next/link";
 
 export default function HomePage() {
+  const router = useRouter();
   const [triedIds, setTriedIds] = useState<Set<string>>(new Set());
   const [mounted, setMounted] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickerSearch, setPickerSearch] = useState("");
+  const searchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setTriedIds(getTriedFoodIds());
@@ -22,6 +27,24 @@ export default function HomePage() {
       window.removeEventListener("logs-updated", onStorage);
     };
   }, []);
+
+  useEffect(() => {
+    if (pickerOpen && searchRef.current) {
+      searchRef.current.focus();
+    }
+  }, [pickerOpen]);
+
+  const filteredFoods = pickerSearch.trim()
+    ? foods.filter((f) =>
+        f.name.toLowerCase().includes(pickerSearch.toLowerCase())
+      )
+    : foods;
+
+  const handlePickFood = (foodId: string) => {
+    setPickerOpen(false);
+    setPickerSearch("");
+    router.push(`/food/${foodId}`);
+  };
 
   const triedCount = triedIds.size;
   const totalCount = foods.length;
@@ -61,6 +84,84 @@ export default function HomePage() {
           />
         </div>
       </div>
+
+      {/* Add today's taste shortcut */}
+      <button
+        onClick={() => setPickerOpen(true)}
+        className="flex items-center gap-2 text-sm text-warm-600 mb-5"
+      >
+        <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
+          <path
+            fillRule="evenodd"
+            d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z"
+            clipRule="evenodd"
+          />
+        </svg>
+        Add today&apos;s taste
+      </button>
+
+      {/* Food Picker Modal */}
+      {pickerOpen && (
+        <div
+          className="fixed inset-0 bg-black/30 z-50 flex items-end justify-center"
+          onClick={() => { setPickerOpen(false); setPickerSearch(""); }}
+        >
+          <div
+            className="bg-white w-full max-w-lg rounded-t-2xl max-h-[70dvh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="px-4 pt-4 pb-2 border-b border-warm-100">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-semibold text-stone-700">
+                  Pick a food
+                </span>
+                <button
+                  onClick={() => { setPickerOpen(false); setPickerSearch(""); }}
+                  className="text-stone-400 p-1"
+                >
+                  <svg className="w-5 h-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path
+                      fillRule="evenodd"
+                      d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                </button>
+              </div>
+              <input
+                ref={searchRef}
+                type="text"
+                value={pickerSearch}
+                onChange={(e) => setPickerSearch(e.target.value)}
+                placeholder="Search foods..."
+                className="w-full px-3 py-2 border border-warm-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-warm-300"
+              />
+            </div>
+            <div className="overflow-y-auto px-2 py-2">
+              {filteredFoods.length === 0 ? (
+                <p className="text-sm text-stone-400 text-center py-4">
+                  No foods found.
+                </p>
+              ) : (
+                <div className="grid grid-cols-4 gap-1.5">
+                  {filteredFoods.map((food) => (
+                    <button
+                      key={food.id}
+                      onClick={() => handlePickFood(food.id)}
+                      className="flex flex-col items-center justify-center p-2 rounded-xl border border-warm-100 hover:border-warm-300 bg-white transition-colors"
+                    >
+                      <span className="text-xl leading-none">{food.emoji}</span>
+                      <span className="text-[10px] mt-1 text-stone-500 text-center leading-tight">
+                        {food.name}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Food Grid by Category */}
       {categoryOrder.map((cat) => (
