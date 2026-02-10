@@ -3,6 +3,20 @@
 import { FoodLog } from "./types";
 
 const LOGS_KEY = "tiny-tastes-logs";
+const CLOUD_UID_KEY = "tiny-tastes-cloud-uid";
+
+export function setCloudMode(uid: string | null): void {
+  if (uid) {
+    localStorage.setItem(CLOUD_UID_KEY, uid);
+  } else {
+    localStorage.removeItem(CLOUD_UID_KEY);
+  }
+}
+
+export function getCloudUid(): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem(CLOUD_UID_KEY);
+}
 
 export function getLogs(): FoodLog[] {
   if (typeof window === "undefined") return [];
@@ -25,6 +39,15 @@ export function addLog(log: FoodLog): FoodLog[] {
   const logs = getLogs();
   logs.push(log);
   saveLogs(logs);
+
+  // Fire-and-forget cloud sync
+  const uid = getCloudUid();
+  if (uid) {
+    import("./firestore").then(({ pushLogToCloud }) => {
+      pushLogToCloud(uid, log).catch(() => {});
+    });
+  }
+
   return logs;
 }
 

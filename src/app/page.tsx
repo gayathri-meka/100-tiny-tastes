@@ -6,6 +6,7 @@ import { foods, categoryLabels, categoryOrder } from "@/lib/foods";
 import { getTriedFoodIds } from "@/lib/storage";
 import { Food } from "@/lib/types";
 import Link from "next/link";
+import { SaveProgress } from "@/components/SaveProgress";
 
 export default function HomePage() {
   const router = useRouter();
@@ -56,7 +57,7 @@ export default function HomePage() {
   }, {});
 
   return (
-    <div className="px-4 pt-6 pb-4">
+    <div className="px-4 pt-6 pb-8">
       {/* Header */}
       <div className="text-center mb-4">
         <h1 className="text-2xl font-bold text-stone-800">
@@ -85,10 +86,13 @@ export default function HomePage() {
         </div>
       </div>
 
+      {/* Cloud save */}
+      <SaveProgress />
+
       {/* Add today's taste shortcut */}
       <button
         onClick={() => setPickerOpen(true)}
-        className="flex items-center gap-2 text-sm font-medium text-warm-700 bg-warm-100 hover:bg-warm-200 px-4 py-2.5 rounded-xl transition-colors mb-5"
+        className="w-full flex items-center justify-center gap-2 text-sm font-medium text-warm-700 bg-warm-100 hover:bg-warm-200 px-4 py-2.5 rounded-xl border border-warm-200 transition-colors mb-5"
       >
         <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
           <path
@@ -211,6 +215,7 @@ export default function HomePage() {
           </div>
         </div>
       ))}
+
     </div>
   );
 }

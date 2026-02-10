@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { BottomNav } from "@/components/BottomNav";
+import { AuthProvider } from "@/context/AuthContext";
 
 export const metadata: Metadata = {
   title: "100 Tiny Tastes",
@@ -33,8 +34,10 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/icon-192.png" />
       </head>
       <body className="min-h-dvh pb-16">
-        <main className="max-w-lg mx-auto">{children}</main>
-        <BottomNav />
+        <AuthProvider>
+          <main className="max-w-lg mx-auto">{children}</main>
+          <BottomNav />
+        </AuthProvider>
       </body>
     </html>
   );
