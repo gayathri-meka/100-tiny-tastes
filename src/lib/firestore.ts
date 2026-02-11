@@ -3,6 +3,7 @@ import {
   doc,
   getDocs,
   setDoc,
+  deleteDoc,
   writeBatch,
   onSnapshot,
 } from "firebase/firestore";
@@ -50,6 +51,11 @@ export async function migrateLogsToCloud(
     }
   }
   return merged;
+}
+
+export async function deleteLogFromCloud(uid: string, logId: string): Promise<void> {
+  const ref = doc(getFirebaseDb(), "users", uid, "logs", logId);
+  await deleteDoc(ref);
 }
 
 export function subscribeToCloudLogs(

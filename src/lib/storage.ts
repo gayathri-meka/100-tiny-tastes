@@ -53,6 +53,22 @@ export function addLog(log: FoodLog): FoodLog[] {
   return logs;
 }
 
+export function deleteLog(logId: string): FoodLog[] {
+  const logs = getLogs().filter((l) => l.id !== logId);
+  saveLogs(logs);
+
+  const uid = getCloudUid();
+  if (uid) {
+    import("./firestore").then(({ deleteLogFromCloud }) => {
+      deleteLogFromCloud(uid, logId).catch((err) => {
+        console.warn("Cloud delete failed for log:", logId, err);
+      });
+    });
+  }
+
+  return logs;
+}
+
 export function getLogsForFood(foodId: string): FoodLog[] {
   return getLogs().filter((l) => l.foodId === foodId);
 }

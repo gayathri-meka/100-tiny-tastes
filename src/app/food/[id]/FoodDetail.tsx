@@ -6,6 +6,7 @@ import { getFoodById } from "@/lib/foods";
 import { getRecipe } from "@/lib/recipes";
 import {
   addLog,
+  deleteLog,
   generateId,
   getLogsForFood,
 } from "@/lib/storage";
@@ -109,7 +110,7 @@ export default function FoodDetail({ id }: { id: string }) {
       )}
       {activeTab === "recipe" && <RecipeTab food={food} />}
       {activeTab === "history" && (
-        <HistoryTab logs={logs} mounted={mounted} />
+        <HistoryTab logs={logs} mounted={mounted} onDeleted={handleLogSaved} />
       )}
     </div>
   );
@@ -316,10 +317,14 @@ function RecipeTab({ food }: { food: Food }) {
 function HistoryTab({
   logs,
   mounted,
+  onDeleted,
 }: {
   logs: FoodLog[];
   mounted: boolean;
+  onDeleted: () => void;
 }) {
+  const [confirmId, setConfirmId] = useState<string | null>(null);
+
   if (!mounted) {
     return null;
   }
@@ -348,6 +353,13 @@ function HistoryTab({
     "finger food": "Finger food",
   };
 
+  const handleDelete = (logId: string) => {
+    deleteLog(logId);
+    setConfirmId(null);
+    onDeleted();
+    window.dispatchEvent(new Event("logs-updated"));
+  };
+
   return (
     <div className="space-y-2">
       {sorted.map((log) => (
@@ -363,7 +375,39 @@ function HistoryTab({
                 year: "numeric",
               })}
             </span>
-            <span className="text-lg">{reactionEmoji[log.reaction]}</span>
+            <div className="flex items-center gap-2">
+              <span className="text-lg">{reactionEmoji[log.reaction]}</span>
+              {confirmId === log.id ? (
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => handleDelete(log.id)}
+                    className="text-xs px-2 py-0.5 bg-red-500 text-white rounded-full"
+                  >
+                    Delete
+                  </button>
+                  <button
+                    onClick={() => setConfirmId(null)}
+                    className="text-xs px-2 py-0.5 bg-stone-200 text-stone-600 rounded-full"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setConfirmId(log.id)}
+                  className="text-stone-300 hover:text-red-400 transition-colors"
+                  aria-label="Delete log"
+                >
+                  <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
+                    <path
+                      fillRule="evenodd"
+                      d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                </button>
+              )}
+            </div>
           </div>
           <div className="flex gap-2">
             <span className="text-xs px-2 py-0.5 bg-warm-50 text-stone-600 rounded-full">
