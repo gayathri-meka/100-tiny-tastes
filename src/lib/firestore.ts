@@ -4,6 +4,7 @@ import {
   getDocs,
   setDoc,
   writeBatch,
+  onSnapshot,
 } from "firebase/firestore";
 import { getFirebaseDb } from "./firebase";
 import { FoodLog } from "./types";
@@ -49,4 +50,14 @@ export async function migrateLogsToCloud(
     }
   }
   return merged;
+}
+
+export function subscribeToCloudLogs(
+  uid: string,
+  callback: (logs: FoodLog[]) => void
+): () => void {
+  return onSnapshot(logsCollection(uid), (snapshot) => {
+    const logs = snapshot.docs.map((d) => d.data() as FoodLog);
+    callback(logs);
+  });
 }

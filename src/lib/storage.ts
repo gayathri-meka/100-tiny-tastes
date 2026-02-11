@@ -40,11 +40,13 @@ export function addLog(log: FoodLog): FoodLog[] {
   logs.push(log);
   saveLogs(logs);
 
-  // Fire-and-forget cloud sync
+  // Cloud sync (real-time listener will reconcile if this fails)
   const uid = getCloudUid();
   if (uid) {
     import("./firestore").then(({ pushLogToCloud }) => {
-      pushLogToCloud(uid, log).catch(() => {});
+      pushLogToCloud(uid, log).catch((err) => {
+        console.warn("Cloud sync failed for log:", log.id, err);
+      });
     });
   }
 
