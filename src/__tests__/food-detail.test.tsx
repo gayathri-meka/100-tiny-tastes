@@ -1,7 +1,7 @@
 import { render, screen, act } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import FoodDetail from "@/app/food/[id]/FoodDetail";
-import { getLogs, saveLogs, getTriedFoodIds } from "@/lib/storage";
+import { getLogs, saveLogs, getTriedFoodIds, getLogsForFood } from "@/lib/storage";
 import { FoodLog } from "@/lib/types";
 
 jest.mock("next/navigation");
@@ -138,5 +138,95 @@ describe("logging a taste via the UI", () => {
     await user.click(screen.getByText("Save taste"));
 
     expect(screen.getByText("Saved!")).toBeInTheDocument();
+  });
+});
+
+describe("deleting a log via the UI", () => {
+  test("delete button appears on each log in History tab", async () => {
+    saveLogs([
+      { id: "log-1", foodId: "banana", date: "2026-01-15", form: "puree", amount: "taste", reaction: "liked", notes: "" },
+    ]);
+    const user = userEvent.setup();
+
+    await act(async () => {
+      render(<FoodDetail id="banana" />);
+    });
+
+    await user.click(screen.getByRole("button", { name: "History" }));
+
+    expect(screen.getByRole("button", { name: "Delete log" })).toBeInTheDocument();
+  });
+
+  test("clicking delete shows confirmation buttons", async () => {
+    saveLogs([
+      { id: "log-1", foodId: "banana", date: "2026-01-15", form: "puree", amount: "taste", reaction: "liked", notes: "" },
+    ]);
+    const user = userEvent.setup();
+
+    await act(async () => {
+      render(<FoodDetail id="banana" />);
+    });
+
+    await user.click(screen.getByRole("button", { name: "History" }));
+    await user.click(screen.getByRole("button", { name: "Delete log" }));
+
+    expect(screen.getByText("Delete")).toBeInTheDocument();
+    expect(screen.getByText("Cancel")).toBeInTheDocument();
+  });
+
+  test("confirming delete removes the log", async () => {
+    saveLogs([
+      { id: "log-1", foodId: "banana", date: "2026-01-15", form: "puree", amount: "taste", reaction: "liked", notes: "" },
+    ]);
+    const user = userEvent.setup();
+
+    await act(async () => {
+      render(<FoodDetail id="banana" />);
+    });
+
+    await user.click(screen.getByRole("button", { name: "History" }));
+    await user.click(screen.getByRole("button", { name: "Delete log" }));
+    await user.click(screen.getByText("Delete"));
+
+    expect(screen.getByText(/No logs yet/i)).toBeInTheDocument();
+    expect(getLogs()).toHaveLength(0);
+  });
+
+  test("cancelling delete keeps the log", async () => {
+    saveLogs([
+      { id: "log-1", foodId: "banana", date: "2026-01-15", form: "puree", amount: "taste", reaction: "liked", notes: "Yummy" },
+    ]);
+    const user = userEvent.setup();
+
+    await act(async () => {
+      render(<FoodDetail id="banana" />);
+    });
+
+    await user.click(screen.getByRole("button", { name: "History" }));
+    await user.click(screen.getByRole("button", { name: "Delete log" }));
+    await user.click(screen.getByText("Cancel"));
+
+    expect(screen.getByText("Yummy")).toBeInTheDocument();
+    expect(getLogs()).toHaveLength(1);
+  });
+});
+
+describe("real-time sync updates", () => {
+  test("logs-updated event refreshes the food detail page", async () => {
+    await act(async () => {
+      render(<FoodDetail id="banana" />);
+    });
+
+    // Simulate cloud sync adding a log (e.g., from another device)
+    saveLogs([
+      { id: "cloud-1", foodId: "banana", date: "2026-01-20", form: "mashed", amount: "serving", reaction: "liked", notes: "From other device" },
+    ]);
+
+    await act(async () => {
+      window.dispatchEvent(new Event("logs-updated"));
+    });
+
+    // Header should update with "Tried 1 time"
+    expect(screen.getByText(/Tried 1 time/)).toBeInTheDocument();
   });
 });
