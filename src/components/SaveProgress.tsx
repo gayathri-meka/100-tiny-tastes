@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { isFirebaseConfigured } from "@/lib/firebase-config";
-import { getLogs, saveLogs } from "@/lib/storage";
+import { saveLogs } from "@/lib/storage";
 
 function GoogleIcon() {
   return (
@@ -18,31 +18,22 @@ function GoogleIcon() {
 
 export function SaveProgress() {
   const { user, loading, signIn, signOut } = useAuth();
-  const [syncing, setSyncing] = useState(false);
+  const [confirmClear, setConfirmClear] = useState(false);
+  const [clearing, setClearing] = useState(false);
 
-  const handleSync = async () => {
-    if (!user || syncing) return;
-    setSyncing(true);
+  const handleClearData = async () => {
+    if (!user || clearing) return;
+    setClearing(true);
     try {
-      const { fetchCloudLogs, pushLogToCloud } = await import("@/lib/firestore");
-      const cloudLogs = await fetchCloudLogs(user.uid);
-      const localLogs = getLogs();
-
-      // Merge: keep all cloud logs + any local-only logs
-      const cloudIds = new Set(cloudLogs.map((l) => l.id));
-      const localOnly = localLogs.filter((l) => !cloudIds.has(l.id));
-      saveLogs([...cloudLogs, ...localOnly]);
-
-      // Push local-only logs to cloud
-      for (const log of localOnly) {
-        await pushLogToCloud(user.uid, log).catch(() => {});
-      }
-
+      const { clearCloudLogs } = await import("@/lib/firestore");
+      await clearCloudLogs(user.uid);
+      saveLogs([]);
       window.dispatchEvent(new Event("logs-updated"));
     } catch {
-      // Sync failed silently — real-time listener will catch up
+      // Will retry on next attempt
     } finally {
-      setSyncing(false);
+      setClearing(false);
+      setConfirmClear(false);
     }
   };
 
@@ -50,45 +41,56 @@ export function SaveProgress() {
 
   if (user) {
     return (
-      <div className="flex items-center gap-3 px-4 py-3 bg-sage-50 rounded-xl border border-sage-200 text-sm mb-5">
-        {user.photoURL && (
-          <img
-            src={user.photoURL}
-            alt=""
-            className="w-7 h-7 rounded-full"
-            referrerPolicy="no-referrer"
-          />
-        )}
-        <div className="flex-1 min-w-0">
-          <span className="text-sage-700">
-            Signed in{user.displayName ? ` as ${user.displayName}` : user.email ? ` as ${user.email}` : ""}
-          </span>
-          <p className="text-xs text-sage-500">Progress saved to Google</p>
-        </div>
-        <button
-          onClick={handleSync}
-          disabled={syncing}
-          className="text-stone-400 hover:text-sage-600 transition-colors shrink-0 p-1"
-          aria-label="Sync now"
-        >
-          <svg
-            className={`w-4 h-4 ${syncing ? "animate-spin" : ""}`}
-            viewBox="0 0 20 20"
-            fill="currentColor"
-          >
-            <path
-              fillRule="evenodd"
-              d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z"
-              clipRule="evenodd"
+      <div className="space-y-2 mb-5">
+        <div className="flex items-center gap-3 px-4 py-3 bg-sage-50 rounded-xl border border-sage-200 text-sm">
+          {user.photoURL && (
+            <img
+              src={user.photoURL}
+              alt=""
+              className="w-7 h-7 rounded-full"
+              referrerPolicy="no-referrer"
             />
-          </svg>
-        </button>
-        <button
-          onClick={signOut}
-          className="text-xs text-stone-400 hover:text-stone-600 transition-colors shrink-0"
-        >
-          Sign out
-        </button>
+          )}
+          <div className="flex-1 min-w-0">
+            <span className="text-sage-700">
+              Signed in{user.displayName ? ` as ${user.displayName}` : user.email ? ` as ${user.email}` : ""}
+            </span>
+            <p className="text-xs text-sage-500">Progress saved to Google</p>
+          </div>
+          <button
+            onClick={signOut}
+            className="text-xs text-stone-400 hover:text-stone-600 transition-colors shrink-0"
+          >
+            Sign out
+          </button>
+        </div>
+        {confirmClear ? (
+          <div className="flex items-center justify-between px-4 py-2.5 bg-red-50 rounded-xl border border-red-200 text-sm">
+            <span className="text-red-700 text-xs">Clear all taste logs?</span>
+            <div className="flex gap-2">
+              <button
+                onClick={handleClearData}
+                disabled={clearing}
+                className="text-xs px-3 py-1 bg-red-500 text-white rounded-lg"
+              >
+                {clearing ? "Clearing..." : "Yes, clear"}
+              </button>
+              <button
+                onClick={() => setConfirmClear(false)}
+                className="text-xs px-3 py-1 bg-stone-200 text-stone-600 rounded-lg"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button
+            onClick={() => setConfirmClear(true)}
+            className="text-xs text-stone-400 hover:text-red-400 transition-colors px-4"
+          >
+            Clear all data
+          </button>
+        )}
       </div>
     );
   }
