@@ -10,7 +10,7 @@ import {
 } from "react";
 import type { User } from "firebase/auth";
 import { isFirebaseConfigured } from "@/lib/firebase-config";
-import { getLogs, saveLogs, setCloudMode } from "@/lib/storage";
+import { getLogs, saveLogs, setCloudMode, isPendingPush, isPendingDelete, completePendingPush } from "@/lib/storage";
 
 interface AuthContextValue {
   user: User | null;
@@ -80,9 +80,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               // Subscribe to real-time cloud changes for cross-device sync
               unsubscribeSnapshot = subscribeToCloudLogs(firebaseUser.uid, (cloudLogs) => {
                 const cloudIds = new Set(cloudLogs.map((l) => l.id));
-                const localOnly = getLogs().filter((l) => !cloudIds.has(l.id));
-                saveLogs([...cloudLogs, ...localOnly]);
+
+                // Only preserve local-only logs that are pending push (just added, not yet in cloud)
+                const localPending = getLogs().filter(
+                  (l) => !cloudIds.has(l.id) && isPendingPush(l.id)
+                );
+
+                // Exclude cloud logs that are pending local delete
+                const activeLogs = cloudLogs.filter((l) => !isPendingDelete(l.id));
+
+                saveLogs([...activeLogs, ...localPending]);
                 window.dispatchEvent(new Event("logs-updated"));
+
+                // Retry pushing any pending logs (snapshot arrival confirms connectivity)
+                if (localPending.length > 0) {
+                  import("@/lib/firestore").then(({ pushLogToCloud }) => {
+                    for (const log of localPending) {
+                      pushLogToCloud(firebaseUser.uid, log)
+                        .then(() => completePendingPush(log.id))
+                        .catch(() => {});
+                    }
+                  });
+                }
               });
             });
           }).catch(() => {

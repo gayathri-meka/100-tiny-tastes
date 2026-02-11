@@ -5,6 +5,22 @@ import { FoodLog } from "./types";
 const LOGS_KEY = "tiny-tastes-logs";
 const CLOUD_UID_KEY = "tiny-tastes-cloud-uid";
 
+// Track in-flight cloud operations so onSnapshot can merge correctly
+const pendingPushes = new Set<string>();
+const pendingDeletes = new Set<string>();
+
+export function isPendingPush(id: string): boolean {
+  return pendingPushes.has(id);
+}
+
+export function isPendingDelete(id: string): boolean {
+  return pendingDeletes.has(id);
+}
+
+export function completePendingPush(id: string): void {
+  pendingPushes.delete(id);
+}
+
 export function setCloudMode(uid: string | null): void {
   if (uid) {
     localStorage.setItem(CLOUD_UID_KEY, uid);
@@ -40,13 +56,15 @@ export function addLog(log: FoodLog): FoodLog[] {
   logs.push(log);
   saveLogs(logs);
 
-  // Cloud sync (real-time listener will reconcile if this fails)
   const uid = getCloudUid();
   if (uid) {
+    pendingPushes.add(log.id);
     import("./firestore").then(({ pushLogToCloud }) => {
-      pushLogToCloud(uid, log).catch((err) => {
-        console.warn("Cloud sync failed for log:", log.id, err);
-      });
+      pushLogToCloud(uid, log)
+        .then(() => pendingPushes.delete(log.id))
+        .catch((err) => {
+          console.warn("Cloud sync failed for log:", log.id, err);
+        });
     });
   }
 
@@ -59,10 +77,13 @@ export function deleteLog(logId: string): FoodLog[] {
 
   const uid = getCloudUid();
   if (uid) {
+    pendingDeletes.add(logId);
     import("./firestore").then(({ deleteLogFromCloud }) => {
-      deleteLogFromCloud(uid, logId).catch((err) => {
-        console.warn("Cloud delete failed for log:", logId, err);
-      });
+      deleteLogFromCloud(uid, logId)
+        .then(() => pendingDeletes.delete(logId))
+        .catch((err) => {
+          console.warn("Cloud delete failed for log:", logId, err);
+        });
     });
   }
 
