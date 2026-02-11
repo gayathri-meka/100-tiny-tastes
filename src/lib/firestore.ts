@@ -58,17 +58,6 @@ export async function deleteLogFromCloud(uid: string, logId: string): Promise<vo
   await deleteDoc(ref);
 }
 
-export async function clearCloudLogs(uid: string): Promise<void> {
-  const snapshot = await getDocs(logsCollection(uid));
-  if (snapshot.empty) return;
-  const db = getFirebaseDb();
-  const batch = writeBatch(db);
-  for (const d of snapshot.docs) {
-    batch.delete(d.ref);
-  }
-  await batch.commit();
-}
-
 export function subscribeToCloudLogs(
   uid: string,
   callback: (logs: FoodLog[]) => void

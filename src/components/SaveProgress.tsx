@@ -1,9 +1,7 @@
 "use client";
 
-import { useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { isFirebaseConfigured } from "@/lib/firebase-config";
-import { saveLogs } from "@/lib/storage";
 
 function GoogleIcon() {
   return (
@@ -18,79 +16,32 @@ function GoogleIcon() {
 
 export function SaveProgress() {
   const { user, loading, signIn, signOut } = useAuth();
-  const [confirmClear, setConfirmClear] = useState(false);
-  const [clearing, setClearing] = useState(false);
-
-  const handleClearData = async () => {
-    if (!user || clearing) return;
-    setClearing(true);
-    try {
-      const { clearCloudLogs } = await import("@/lib/firestore");
-      await clearCloudLogs(user.uid);
-      saveLogs([]);
-      window.dispatchEvent(new Event("logs-updated"));
-    } catch {
-      // Will retry on next attempt
-    } finally {
-      setClearing(false);
-      setConfirmClear(false);
-    }
-  };
 
   if (!isFirebaseConfigured() || loading) return null;
 
   if (user) {
     return (
-      <div className="space-y-2 mb-5">
-        <div className="flex items-center gap-3 px-4 py-3 bg-sage-50 rounded-xl border border-sage-200 text-sm">
-          {user.photoURL && (
-            <img
-              src={user.photoURL}
-              alt=""
-              className="w-7 h-7 rounded-full"
-              referrerPolicy="no-referrer"
-            />
-          )}
-          <div className="flex-1 min-w-0">
-            <span className="text-sage-700">
-              Signed in{user.displayName ? ` as ${user.displayName}` : user.email ? ` as ${user.email}` : ""}
-            </span>
-            <p className="text-xs text-sage-500">Progress saved to Google</p>
-          </div>
-          <button
-            onClick={signOut}
-            className="text-xs text-stone-400 hover:text-stone-600 transition-colors shrink-0"
-          >
-            Sign out
-          </button>
-        </div>
-        {confirmClear ? (
-          <div className="flex items-center justify-between px-4 py-2.5 bg-red-50 rounded-xl border border-red-200 text-sm">
-            <span className="text-red-700 text-xs">Clear all taste logs?</span>
-            <div className="flex gap-2">
-              <button
-                onClick={handleClearData}
-                disabled={clearing}
-                className="text-xs px-3 py-1 bg-red-500 text-white rounded-lg"
-              >
-                {clearing ? "Clearing..." : "Yes, clear"}
-              </button>
-              <button
-                onClick={() => setConfirmClear(false)}
-                className="text-xs px-3 py-1 bg-stone-200 text-stone-600 rounded-lg"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        ) : (
-          <button
-            onClick={() => setConfirmClear(true)}
-            className="text-xs text-stone-400 hover:text-red-400 transition-colors px-4"
-          >
-            Clear all data
-          </button>
+      <div className="flex items-center gap-3 px-4 py-3 bg-sage-50 rounded-xl border border-sage-200 text-sm mb-5">
+        {user.photoURL && (
+          <img
+            src={user.photoURL}
+            alt=""
+            className="w-7 h-7 rounded-full"
+            referrerPolicy="no-referrer"
+          />
         )}
+        <div className="flex-1 min-w-0">
+          <span className="text-sage-700">
+            Signed in{user.displayName ? ` as ${user.displayName}` : user.email ? ` as ${user.email}` : ""}
+          </span>
+          <p className="text-xs text-sage-500">Progress saved to Google</p>
+        </div>
+        <button
+          onClick={signOut}
+          className="text-xs text-stone-400 hover:text-stone-600 transition-colors shrink-0"
+        >
+          Sign out
+        </button>
       </div>
     );
   }
