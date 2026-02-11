@@ -62,8 +62,14 @@ export function subscribeToCloudLogs(
   uid: string,
   callback: (logs: FoodLog[]) => void
 ): () => void {
-  return onSnapshot(logsCollection(uid), (snapshot) => {
-    const logs = snapshot.docs.map((d) => d.data() as FoodLog);
-    callback(logs);
-  });
+  return onSnapshot(
+    logsCollection(uid),
+    (snapshot) => {
+      const logs = snapshot.docs.map((d) => d.data() as FoodLog);
+      callback(logs);
+    },
+    (err) => {
+      console.warn("Cloud listener failed:", err);
+    }
+  );
 }

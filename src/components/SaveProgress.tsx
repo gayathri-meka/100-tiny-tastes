@@ -37,7 +37,7 @@ export function SaveProgress() {
           <p className="text-xs text-sage-500">Progress saved to Google</p>
         </div>
         <button
-          onClick={signOut}
+          onClick={() => signOut().catch(() => {})}
           className="text-xs text-stone-400 hover:text-stone-600 transition-colors shrink-0"
         >
           Sign out
@@ -48,7 +48,7 @@ export function SaveProgress() {
 
   return (
     <button
-      onClick={signIn}
+      onClick={() => signIn().catch(() => {})}
       className="w-full flex items-center justify-center gap-2.5 px-4 py-3 bg-white rounded-xl border border-warm-200 hover:border-warm-300 text-sm text-stone-600 hover:text-stone-800 transition-colors mb-5"
     >
       <GoogleIcon />

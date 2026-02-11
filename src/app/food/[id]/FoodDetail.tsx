@@ -32,6 +32,12 @@ export default function FoodDetail({ id }: { id: string }) {
       setLogs(getLogsForFood(food.id));
     }
     setMounted(true);
+
+    const onUpdate = () => {
+      if (food) setLogs(getLogsForFood(food.id));
+    };
+    window.addEventListener("logs-updated", onUpdate);
+    return () => window.removeEventListener("logs-updated", onUpdate);
   }, [food]);
 
   if (!food) {
