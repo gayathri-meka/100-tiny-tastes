@@ -6,7 +6,7 @@ import { foods, categoryLabels, categoryOrder } from "@/lib/foods";
 import { getTriedFoodIds } from "@/lib/storage";
 import { Food } from "@/lib/types";
 import Link from "next/link";
-import { SaveProgress } from "@/components/SaveProgress";
+import { HeaderAvatar, HeaderSignIn } from "@/components/SaveProgress";
 import { useAuth } from "@/context/AuthContext";
 
 export default function HomePage() {
@@ -17,6 +17,7 @@ export default function HomePage() {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerSearch, setPickerSearch] = useState("");
   const [filter, setFilter] = useState<"all" | "tried" | "not-tried">("all");
+  const [collapsedCats, setCollapsedCats] = useState<Set<string>>(new Set());
   const searchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -51,6 +52,15 @@ export default function HomePage() {
     router.push(`/food/${foodId}`);
   };
 
+  const toggleCategory = (cat: string) => {
+    setCollapsedCats((prev) => {
+      const next = new Set(prev);
+      if (next.has(cat)) next.delete(cat);
+      else next.add(cat);
+      return next;
+    });
+  };
+
   const triedCount = triedIds.size;
   const totalCount = foods.length;
   const progress = totalCount > 0 ? (triedCount / totalCount) * 100 : 0;
@@ -61,15 +71,19 @@ export default function HomePage() {
   }, {});
 
   return (
-    <div className="px-4 pt-6 pb-8">
+    <div className="px-4 pt-6 pb-40">
       {/* Header */}
-      <div className="text-center mb-4">
-        <h1 className="text-2xl font-bold text-stone-800">
-          {babyName ? `${babyName}\u2019s Tiny Tastes` : "100 Tiny Tastes"}
-        </h1>
-        <p className="text-sm text-stone-500 mt-0.5">
-          One little taste at a time
-        </p>
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h1 className="text-2xl font-bold text-stone-800">
+            {babyName ? `${babyName}\u2019s Tiny Tastes` : "100 Tiny Tastes"}
+          </h1>
+          <p className="text-sm text-stone-500 mt-0.5">
+            One little taste at a time
+          </p>
+        </div>
+        <HeaderAvatar />
+        <HeaderSignIn />
       </div>
 
       {/* Progress Card */}
@@ -79,7 +93,7 @@ export default function HomePage() {
             Progress
           </span>
           <span className="text-sm font-semibold text-warm-700">
-            {mounted ? triedCount : "–"} / {totalCount} tastes tried
+            {mounted ? triedCount : "\u2013"} / {totalCount} tastes tried
           </span>
         </div>
         <div className="w-full h-3 bg-warm-100 rounded-full overflow-hidden">
@@ -89,9 +103,6 @@ export default function HomePage() {
           />
         </div>
       </div>
-
-      {/* Cloud save */}
-      <SaveProgress />
 
       {/* Add today's taste shortcut */}
       <button
@@ -172,7 +183,7 @@ export default function HomePage() {
       )}
 
       {/* Filter Chips */}
-      <div className="flex gap-2 mb-4 justify-center">
+      <div className="flex gap-1.5 mb-4 justify-center">
         {([
           { key: "all", label: "All" },
           { key: "tried", label: "Tried" },
@@ -181,10 +192,10 @@ export default function HomePage() {
           <button
             key={f.key}
             onClick={() => setFilter(f.key)}
-            className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+            className={`px-2.5 py-1 rounded-full text-[11px] transition-colors ${
               filter === f.key
-                ? "bg-warm-500 text-white"
-                : "bg-white text-stone-500 border border-warm-200 hover:border-warm-300"
+                ? "bg-warm-200 text-warm-700 font-medium"
+                : "text-stone-400 hover:text-stone-500"
             }`}
           >
             {f.label}
@@ -200,11 +211,30 @@ export default function HomePage() {
           return true;
         });
         if (filtered.length === 0) return null;
+        const collapsed = collapsedCats.has(cat);
         return (
         <div key={cat} className="mb-4">
-          <h2 className="text-xs font-semibold text-stone-400 uppercase tracking-wider mb-2">
-            {categoryLabels[cat]}
-          </h2>
+          <button
+            onClick={() => toggleCategory(cat)}
+            className="flex items-center gap-1.5 mb-2 w-full text-left"
+          >
+            <svg
+              className={`w-3 h-3 text-stone-400 transition-transform ${collapsed ? "" : "rotate-90"}`}
+              viewBox="0 0 20 20"
+              fill="currentColor"
+            >
+              <path
+                fillRule="evenodd"
+                d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z"
+                clipRule="evenodd"
+              />
+            </svg>
+            <h2 className="text-xs font-semibold text-stone-400 uppercase tracking-wider">
+              {categoryLabels[cat]}
+            </h2>
+            <span className="text-[10px] text-stone-300">{filtered.length}</span>
+          </button>
+          {!collapsed && (
           <div className="grid grid-cols-4 gap-2">
             {filtered.map((food) => {
               const tried = triedIds.has(food.id);
@@ -245,6 +275,7 @@ export default function HomePage() {
               );
             })}
           </div>
+          )}
         </div>
         );
       })}

@@ -1,19 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { isFirebaseConfigured } from "@/lib/firebase-config";
-
-function GoogleIcon() {
-  return (
-    <svg className="w-4 h-4" viewBox="0 0 48 48">
-      <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
-      <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
-      <path fill="#FBBC05" d="M10.53 28.59a14.5 14.5 0 0 1 0-9.18l-7.98-6.19a24.0 24.0 0 0 0 0 21.56l7.98-6.19z" />
-      <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
-    </svg>
-  );
-}
 
 function Spinner() {
   return (
@@ -24,11 +13,102 @@ function Spinner() {
   );
 }
 
-export function SaveProgress() {
-  const { user, loading, signIn, signOut } = useAuth();
+function GoogleIcon() {
+  return (
+    <svg className="w-3.5 h-3.5" viewBox="0 0 48 48">
+      <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
+      <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
+      <path fill="#FBBC05" d="M10.53 28.59a14.5 14.5 0 0 1 0-9.18l-7.98-6.19a24.0 24.0 0 0 0 0 21.56l7.98-6.19z" />
+      <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
+    </svg>
+  );
+}
+
+export function HeaderAvatar() {
+  const { user, loading, signOut } = useAuth();
+  const [busy, setBusy] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const handleClick = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [menuOpen]);
+
+  if (!isFirebaseConfigured() || loading || !user) return null;
+
+  const handleSignOut = async () => {
+    setMenuOpen(false);
+    setBusy(true);
+    try {
+      await signOut();
+    } catch {
+      // handled in AuthContext
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="relative" ref={menuRef}>
+      <button
+        onClick={() => setMenuOpen((v) => !v)}
+        disabled={busy}
+        className="relative disabled:opacity-50"
+      >
+        {user.photoURL ? (
+          /* eslint-disable-next-line @next/next/no-img-element */
+          <img
+            src={user.photoURL}
+            alt=""
+            className="w-8 h-8 rounded-full"
+            referrerPolicy="no-referrer"
+          />
+        ) : (
+          <div className="w-8 h-8 rounded-full bg-sage-100 flex items-center justify-center text-sage-600 text-sm font-medium">
+            {(user.displayName || user.email || "U").charAt(0).toUpperCase()}
+          </div>
+        )}
+        {busy && (
+          <div className="absolute inset-0 flex items-center justify-center bg-white/60 rounded-full">
+            <Spinner />
+          </div>
+        )}
+      </button>
+
+      {menuOpen && (
+        <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-xl shadow-lg border border-warm-100 py-2 z-50">
+          <div className="px-3 py-2 border-b border-warm-100">
+            <p className="text-sm font-medium text-stone-700 truncate">
+              {user.displayName || "Signed in"}
+            </p>
+            {user.email && (
+              <p className="text-xs text-stone-400 truncate">{user.email}</p>
+            )}
+          </div>
+          <button
+            onClick={handleSignOut}
+            className="w-full text-left px-3 py-2 text-sm text-stone-500 hover:bg-warm-50 hover:text-stone-700 transition-colors"
+          >
+            Sign out
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function HeaderSignIn() {
+  const { user, loading, signIn } = useAuth();
   const [busy, setBusy] = useState(false);
 
-  if (!isFirebaseConfigured() || loading) return null;
+  if (!isFirebaseConfigured() || loading || user) return null;
 
   const handleSignIn = async () => {
     setBusy(true);
@@ -41,54 +121,20 @@ export function SaveProgress() {
     }
   };
 
-  const handleSignOut = async () => {
-    setBusy(true);
-    try {
-      await signOut();
-    } catch {
-      // handled in AuthContext
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  if (user) {
-    return (
-      <div className="flex items-center gap-3 px-4 py-3 bg-sage-50 rounded-xl border border-sage-200 text-sm mb-5">
-        {user.photoURL && (
-          /* eslint-disable-next-line @next/next/no-img-element */
-          <img
-            src={user.photoURL}
-            alt=""
-            className="w-7 h-7 rounded-full"
-            referrerPolicy="no-referrer"
-          />
-        )}
-        <div className="flex-1 min-w-0">
-          <span className="text-sage-700">
-            Signed in{user.displayName ? ` as ${user.displayName}` : user.email ? ` as ${user.email}` : ""}
-          </span>
-          <p className="text-xs text-sage-500">Progress saved to Google</p>
-        </div>
-        <button
-          onClick={handleSignOut}
-          disabled={busy}
-          className="text-xs text-stone-400 hover:text-stone-600 transition-colors shrink-0 disabled:opacity-50"
-        >
-          {busy ? <Spinner /> : "Sign out"}
-        </button>
-      </div>
-    );
-  }
-
   return (
     <button
       onClick={handleSignIn}
       disabled={busy}
-      className="w-full flex items-center justify-center gap-2.5 px-4 py-3 bg-white rounded-xl border border-warm-200 hover:border-warm-300 text-sm text-stone-600 hover:text-stone-800 transition-colors mb-5 disabled:opacity-50"
+      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-[11px] text-stone-500 border border-warm-200 hover:border-warm-300 hover:text-stone-700 transition-colors disabled:opacity-50"
     >
-      {busy ? <Spinner /> : <GoogleIcon />}
-      {busy ? "Signing in..." : "Sign in with Google to save your progress"}
+      {busy ? (
+        <Spinner />
+      ) : (
+        <>
+          <GoogleIcon />
+          <span>Save progress</span>
+        </>
+      )}
     </button>
   );
 }
