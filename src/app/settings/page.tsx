@@ -107,7 +107,7 @@ function SectionCard({
 }) {
   const [expanded, setExpanded] = useState(defaultOpen);
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-warm-100 mb-4 overflow-hidden">
+    <div className="bg-white rounded-xl shadow-sm border border-warm-100 mb-4">
       <button
         onClick={() => setExpanded(!expanded)}
         className="w-full flex items-center justify-between px-4 py-3"

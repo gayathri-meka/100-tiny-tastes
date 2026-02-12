@@ -70,7 +70,8 @@ export default function HomePage() {
     });
   };
 
-  const triedCount = triedIds.size;
+  const visibleFoodIds = new Set(allFoods.map((f) => f.id));
+  const triedCount = [...triedIds].filter((id) => visibleFoodIds.has(id)).length;
   const totalCount = allFoods.length;
   const progress = totalCount > 0 ? (triedCount / totalCount) * 100 : 0;
 
