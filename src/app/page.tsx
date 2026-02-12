@@ -7,9 +7,11 @@ import { getTriedFoodIds } from "@/lib/storage";
 import { Food } from "@/lib/types";
 import Link from "next/link";
 import { SaveProgress } from "@/components/SaveProgress";
+import { useAuth } from "@/context/AuthContext";
 
 export default function HomePage() {
   const router = useRouter();
+  const { babyName } = useAuth();
   const [triedIds, setTriedIds] = useState<Set<string>>(new Set());
   const [mounted, setMounted] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -17,15 +19,16 @@ export default function HomePage() {
   const searchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    setTriedIds(getTriedFoodIds());
+    // Read from localStorage on mount (SSR-safe: can't read during render)
+    const syncFromStorage = () => setTriedIds(getTriedFoodIds());
+    syncFromStorage();
     setMounted(true);
 
-    const onStorage = () => setTriedIds(getTriedFoodIds());
-    window.addEventListener("storage", onStorage);
-    window.addEventListener("logs-updated", onStorage);
+    window.addEventListener("storage", syncFromStorage);
+    window.addEventListener("logs-updated", syncFromStorage);
     return () => {
-      window.removeEventListener("storage", onStorage);
-      window.removeEventListener("logs-updated", onStorage);
+      window.removeEventListener("storage", syncFromStorage);
+      window.removeEventListener("logs-updated", syncFromStorage);
     };
   }, []);
 
@@ -61,7 +64,7 @@ export default function HomePage() {
       {/* Header */}
       <div className="text-center mb-4">
         <h1 className="text-2xl font-bold text-stone-800">
-          100 Tiny Tastes
+          {babyName ? `${babyName}\u2019s Tiny Tastes` : "100 Tiny Tastes"}
         </h1>
         <p className="text-sm text-stone-500 mt-0.5">
           One little taste at a time

@@ -6,15 +6,19 @@ import {
   useEffect,
   useState,
   useCallback,
+  useRef,
   type ReactNode,
 } from "react";
 import type { User } from "firebase/auth";
 import { isFirebaseConfigured } from "@/lib/firebase-config";
 import { getLogs, saveLogs, setCloudMode, isPendingPush, isPendingDelete, completePendingPush } from "@/lib/storage";
+import { setFamilyId as storeFamilyId, getFamilyId as readFamilyId, setBabyName as storeBabyName } from "@/lib/family";
 
 interface AuthContextValue {
   user: User | null;
   loading: boolean;
+  familyId: string | null;
+  babyName: string | null;
   signIn: () => Promise<void>;
   signOut: () => Promise<void>;
 }
@@ -22,6 +26,8 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue>({
   user: null,
   loading: true,
+  familyId: null,
+  babyName: null,
   signIn: async () => {},
   signOut: async () => {},
 });
@@ -33,6 +39,58 @@ export function useAuth() {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [familyId, setFamilyId] = useState<string | null>(null);
+  const [babyName, setBabyName] = useState<string | null>(null);
+  const userRef = useRef<User | null>(null);
+
+  // Helper to set up cloud sync (migrate + subscribe) for a given familyId
+  const setupCloudSync = useCallback(
+    (
+      firebaseUser: User,
+      fId: string | null,
+      setUnsub: (fn: (() => void) | undefined) => void
+    ) => {
+      import("@/lib/firestore").then(({ migrateLogsToCloud, subscribeToCloudLogs }) => {
+        const localLogs = getLogs();
+        return migrateLogsToCloud(firebaseUser.uid, localLogs, fId).then((merged) => {
+          const currentLocal = getLogs();
+          const mergedIds = new Set(merged.map((l) => l.id));
+          const addedDuringMigration = currentLocal.filter((l) => !mergedIds.has(l.id));
+          const finalLogs = [...merged, ...addedDuringMigration];
+          saveLogs(finalLogs);
+          window.dispatchEvent(new Event("logs-updated"));
+
+          for (const log of addedDuringMigration) {
+            import("@/lib/firestore").then(({ pushLogToCloud }) => {
+              pushLogToCloud(firebaseUser.uid, log, fId).catch(() => {});
+            });
+          }
+
+          const unsub = subscribeToCloudLogs(firebaseUser.uid, (cloudLogs) => {
+            const cloudIds = new Set(cloudLogs.map((l) => l.id));
+            const localPending = getLogs().filter(
+              (l) => !cloudIds.has(l.id) && isPendingPush(l.id)
+            );
+            const activeLogs = cloudLogs.filter((l) => !isPendingDelete(l.id));
+            saveLogs([...activeLogs, ...localPending]);
+            window.dispatchEvent(new Event("logs-updated"));
+
+            if (localPending.length > 0) {
+              import("@/lib/firestore").then(({ pushLogToCloud }) => {
+                for (const log of localPending) {
+                  pushLogToCloud(firebaseUser.uid, log, fId)
+                    .then(() => completePendingPush(log.id))
+                    .catch(() => {});
+                }
+              });
+            }
+          }, fId);
+          setUnsub(unsub);
+        });
+      }).catch(() => {});
+    },
+    []
+  );
 
   useEffect(() => {
     if (!isFirebaseConfigured()) {
@@ -51,76 +109,85 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       unsubscribe = onAuthStateChanged(auth, (firebaseUser: User | null) => {
         setUser(firebaseUser);
+        userRef.current = firebaseUser;
         setLoading(false);
 
-        // Clean up previous snapshot listener on auth state change
         unsubscribeSnapshot?.();
         unsubscribeSnapshot = undefined;
 
         if (firebaseUser) {
           setCloudMode(firebaseUser.uid);
-          import("@/lib/firestore").then(({ migrateLogsToCloud, subscribeToCloudLogs }) => {
-            const localLogs = getLogs();
-            return migrateLogsToCloud(firebaseUser.uid, localLogs).then((merged) => {
-              // Re-read local logs to capture any added during async migration
-              const currentLocal = getLogs();
-              const mergedIds = new Set(merged.map((l) => l.id));
-              const addedDuringMigration = currentLocal.filter((l) => !mergedIds.has(l.id));
-              const finalLogs = [...merged, ...addedDuringMigration];
-              saveLogs(finalLogs);
-              window.dispatchEvent(new Event("logs-updated"));
 
-              // Push any logs added during migration to cloud
-              for (const log of addedDuringMigration) {
-                import("@/lib/firestore").then(({ pushLogToCloud }) => {
-                  pushLogToCloud(firebaseUser.uid, log).catch(() => {});
-                });
+          // Check if user belongs to a family
+          import("@/lib/family").then(({ fetchUserFamilyId, getFamilyInfo }) => {
+            fetchUserFamilyId(firebaseUser.uid).then((fId) => {
+              if (fId) {
+                storeFamilyId(fId);
+                setFamilyId(fId);
+                getFamilyInfo(fId).then((info) => {
+                  if (info?.babyName) {
+                    storeBabyName(info.babyName);
+                    setBabyName(info.babyName);
+                  }
+                }).catch(() => {});
+              } else {
+                storeFamilyId(null);
+                setFamilyId(null);
+                storeBabyName(null);
+                setBabyName(null);
               }
 
-              // Subscribe to real-time cloud changes for cross-device sync
-              unsubscribeSnapshot = subscribeToCloudLogs(firebaseUser.uid, (cloudLogs) => {
-                const cloudIds = new Set(cloudLogs.map((l) => l.id));
-
-                // Only preserve local-only logs that are pending push (just added, not yet in cloud)
-                const localPending = getLogs().filter(
-                  (l) => !cloudIds.has(l.id) && isPendingPush(l.id)
-                );
-
-                // Exclude cloud logs that are pending local delete
-                const activeLogs = cloudLogs.filter((l) => !isPendingDelete(l.id));
-
-                saveLogs([...activeLogs, ...localPending]);
-                window.dispatchEvent(new Event("logs-updated"));
-
-                // Retry pushing any pending logs (snapshot arrival confirms connectivity)
-                if (localPending.length > 0) {
-                  import("@/lib/firestore").then(({ pushLogToCloud }) => {
-                    for (const log of localPending) {
-                      pushLogToCloud(firebaseUser.uid, log)
-                        .then(() => completePendingPush(log.id))
-                        .catch(() => {});
-                    }
-                  });
-                }
+              setupCloudSync(firebaseUser, fId, (fn) => {
+                unsubscribeSnapshot = fn;
+              });
+            }).catch(() => {
+              // Failed to fetch family — continue with personal mode
+              setupCloudSync(firebaseUser, null, (fn) => {
+                unsubscribeSnapshot = fn;
               });
             });
-          }).catch(() => {
-            // Cloud sync failed — continue with local data
           });
         } else {
           setCloudMode(null);
+          storeFamilyId(null);
+          setFamilyId(null);
+          storeBabyName(null);
+          setBabyName(null);
         }
       });
     }).catch(() => {
-      // Firebase failed to load — fall back to local-only
       setLoading(false);
     });
+
+    // Listen for family-changed events from Settings page
+    const handleFamilyChanged = () => {
+      const newFamilyId = readFamilyId();
+      setFamilyId(newFamilyId);
+
+      // Update baby name from localStorage
+      import("@/lib/family").then(({ getBabyName }) => {
+        setBabyName(getBabyName());
+      });
+
+      // Re-subscribe to the correct collection
+      unsubscribeSnapshot?.();
+      unsubscribeSnapshot = undefined;
+
+      if (userRef.current) {
+        setupCloudSync(userRef.current, newFamilyId, (fn) => {
+          unsubscribeSnapshot = fn;
+        });
+      }
+    };
+
+    window.addEventListener("family-changed", handleFamilyChanged);
 
     return () => {
       unsubscribe?.();
       unsubscribeSnapshot?.();
+      window.removeEventListener("family-changed", handleFamilyChanged);
     };
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const signIn = useCallback(async () => {
     try {
@@ -130,7 +197,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const provider = new GoogleAuthProvider();
       await signInWithPopup(auth, provider);
     } catch (error) {
-      // User closing the popup is not an error
       if (
         error instanceof Error &&
         (error as { code?: string }).code === "auth/popup-closed-by-user"
@@ -148,17 +214,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { signOut: firebaseSignOut } = await import("firebase/auth");
       const auth = getFirebaseAuth();
       setCloudMode(null);
+      storeFamilyId(null);
+      setFamilyId(null);
+      storeBabyName(null);
+      setBabyName(null);
       await firebaseSignOut(auth);
     } catch (error) {
-      // Still clear cloud mode even if sign-out fails
       setCloudMode(null);
+      storeFamilyId(null);
+      setFamilyId(null);
+      storeBabyName(null);
+      setBabyName(null);
       console.error("Sign-out failed:", error);
       throw error;
     }
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, loading, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, loading, familyId, babyName, signIn, signOut }}>
       {children}
     </AuthContext.Provider>
   );

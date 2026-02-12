@@ -10,35 +10,51 @@ import {
 import { getFirebaseDb } from "./firebase";
 import { FoodLog } from "./types";
 
-function logsCollection(uid: string) {
-  return collection(getFirebaseDb(), "users", uid, "logs");
+function logsCollection(uid: string, familyId?: string | null) {
+  const db = getFirebaseDb();
+  if (familyId) {
+    return collection(db, "families", familyId, "logs");
+  }
+  return collection(db, "users", uid, "logs");
 }
 
-export async function fetchCloudLogs(uid: string): Promise<FoodLog[]> {
-  const snapshot = await getDocs(logsCollection(uid));
+function logDocPath(uid: string, logId: string, familyId?: string | null): string {
+  if (familyId) {
+    return `families/${familyId}/logs/${logId}`;
+  }
+  return `users/${uid}/logs/${logId}`;
+}
+
+export async function fetchCloudLogs(uid: string, familyId?: string | null): Promise<FoodLog[]> {
+  const snapshot = await getDocs(logsCollection(uid, familyId));
   return snapshot.docs.map((d) => d.data() as FoodLog);
 }
 
-export async function pushLogToCloud(uid: string, log: FoodLog): Promise<void> {
-  const ref = doc(getFirebaseDb(), "users", uid, "logs", log.id);
+export async function pushLogToCloud(uid: string, log: FoodLog, familyId?: string | null): Promise<void> {
+  const ref = doc(getFirebaseDb(), logDocPath(uid, log.id, familyId));
   await setDoc(ref, log);
 }
 
 export async function migrateLogsToCloud(
   uid: string,
-  localLogs: FoodLog[]
+  localLogs: FoodLog[],
+  familyId?: string | null
 ): Promise<FoodLog[]> {
-  const cloudLogs = await fetchCloudLogs(uid);
+  const cloudLogs = await fetchCloudLogs(uid, familyId);
   const existingIds = new Set(cloudLogs.map((l) => l.id));
   const newLogs = localLogs.filter((l) => !existingIds.has(l.id));
 
   if (newLogs.length > 0) {
     const db = getFirebaseDb();
-    const batch = writeBatch(db);
-    for (const log of newLogs) {
-      batch.set(doc(db, "users", uid, "logs", log.id), log);
+    // Firestore limits batches to 500 operations
+    for (let i = 0; i < newLogs.length; i += 500) {
+      const chunk = newLogs.slice(i, i + 500);
+      const batch = writeBatch(db);
+      for (const log of chunk) {
+        batch.set(doc(db, logDocPath(uid, log.id, familyId)), log);
+      }
+      await batch.commit();
     }
-    await batch.commit();
   }
 
   // Return merged set (cloud + newly uploaded local)
@@ -53,17 +69,18 @@ export async function migrateLogsToCloud(
   return merged;
 }
 
-export async function deleteLogFromCloud(uid: string, logId: string): Promise<void> {
-  const ref = doc(getFirebaseDb(), "users", uid, "logs", logId);
+export async function deleteLogFromCloud(uid: string, logId: string, familyId?: string | null): Promise<void> {
+  const ref = doc(getFirebaseDb(), logDocPath(uid, logId, familyId));
   await deleteDoc(ref);
 }
 
 export function subscribeToCloudLogs(
   uid: string,
-  callback: (logs: FoodLog[]) => void
+  callback: (logs: FoodLog[]) => void,
+  familyId?: string | null
 ): () => void {
   return onSnapshot(
-    logsCollection(uid),
+    logsCollection(uid, familyId),
     (snapshot) => {
       const logs = snapshot.docs.map((d) => d.data() as FoodLog);
       callback(logs);

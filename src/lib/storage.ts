@@ -1,6 +1,7 @@
 "use client";
 
 import { FoodLog } from "./types";
+import { getFamilyId } from "./family";
 
 const LOGS_KEY = "tiny-tastes-logs";
 const CLOUD_UID_KEY = "tiny-tastes-cloud-uid";
@@ -58,9 +59,10 @@ export function addLog(log: FoodLog): FoodLog[] {
 
   const uid = getCloudUid();
   if (uid) {
+    const familyId = getFamilyId();
     pendingPushes.add(log.id);
     import("./firestore").then(({ pushLogToCloud }) => {
-      pushLogToCloud(uid, log)
+      pushLogToCloud(uid, log, familyId)
         .then(() => pendingPushes.delete(log.id))
         .catch((err) => {
           console.warn("Cloud sync failed for log:", log.id, err);
@@ -77,9 +79,10 @@ export function deleteLog(logId: string): FoodLog[] {
 
   const uid = getCloudUid();
   if (uid) {
+    const familyId = getFamilyId();
     pendingDeletes.add(logId);
     import("./firestore").then(({ deleteLogFromCloud }) => {
-      deleteLogFromCloud(uid, logId)
+      deleteLogFromCloud(uid, logId, familyId)
         .then(() => pendingDeletes.delete(logId))
         .catch((err) => {
           console.warn("Cloud delete failed for log:", logId, err);
