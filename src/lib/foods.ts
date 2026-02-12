@@ -1,4 +1,5 @@
 import { Food, FoodCategory } from "./types";
+import { getCustomFoods, getCustomFoodById } from "./custom-foods";
 
 export const foods: Food[] = [
   // Fruits (20)
@@ -126,6 +127,15 @@ export const categoryOrder: FoodCategory[] = [
   "other",
 ];
 
+export function getAllFoods(): Food[] {
+  const custom = getCustomFoods();
+  return [...foods, ...custom];
+}
+
 export function getFoodById(id: string): Food | undefined {
-  return foods.find((f) => f.id === id);
+  // Check system foods first
+  const systemFood = foods.find((f) => f.id === id);
+  if (systemFood) return systemFood;
+  // Check custom foods (including deleted, for log rendering)
+  return getCustomFoodById(id);
 }

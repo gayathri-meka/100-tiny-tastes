@@ -8,7 +8,7 @@ import {
   onSnapshot,
 } from "firebase/firestore";
 import { getFirebaseDb } from "./firebase";
-import { FoodLog } from "./types";
+import { FoodLog, CustomFood } from "./types";
 
 function logsCollection(uid: string, familyId?: string | null) {
   const db = getFirebaseDb();
@@ -87,6 +87,57 @@ export function subscribeToCloudLogs(
     },
     (err) => {
       console.warn("Cloud listener failed:", err);
+    }
+  );
+}
+
+// --- Custom Foods ---
+
+function customFoodsCollection(uid: string, familyId?: string | null) {
+  const db = getFirebaseDb();
+  if (familyId) {
+    return collection(db, "families", familyId, "customFoods");
+  }
+  return collection(db, "users", uid, "customFoods");
+}
+
+function customFoodDocPath(uid: string, foodId: string, familyId?: string | null): string {
+  if (familyId) {
+    return `families/${familyId}/customFoods/${foodId}`;
+  }
+  return `users/${uid}/customFoods/${foodId}`;
+}
+
+export async function pushCustomFoodToCloud(
+  uid: string,
+  food: CustomFood,
+  familyId?: string | null
+): Promise<void> {
+  const ref = doc(getFirebaseDb(), customFoodDocPath(uid, food.id, familyId));
+  await setDoc(ref, food);
+}
+
+export async function fetchCustomFoods(
+  uid: string,
+  familyId?: string | null
+): Promise<CustomFood[]> {
+  const snapshot = await getDocs(customFoodsCollection(uid, familyId));
+  return snapshot.docs.map((d) => d.data() as CustomFood);
+}
+
+export function subscribeToCustomFoods(
+  uid: string,
+  callback: (foods: CustomFood[]) => void,
+  familyId?: string | null
+): () => void {
+  return onSnapshot(
+    customFoodsCollection(uid, familyId),
+    (snapshot) => {
+      const foods = snapshot.docs.map((d) => d.data() as CustomFood);
+      callback(foods);
+    },
+    (err) => {
+      console.warn("Custom foods listener failed:", err);
     }
   );
 }

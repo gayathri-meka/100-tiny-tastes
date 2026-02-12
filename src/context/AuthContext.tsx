@@ -13,6 +13,7 @@ import type { User } from "firebase/auth";
 import { isFirebaseConfigured } from "@/lib/firebase-config";
 import { getLogs, saveLogs, setCloudMode, isPendingPush, isPendingDelete, completePendingPush } from "@/lib/storage";
 import { setFamilyId as storeFamilyId, getFamilyId as readFamilyId, setBabyName as storeBabyName } from "@/lib/family";
+import { saveCustomFoods, clearCustomFoods } from "@/lib/custom-foods";
 
 interface AuthContextValue {
   user: User | null;
@@ -48,9 +49,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     (
       firebaseUser: User,
       fId: string | null,
-      setUnsub: (fn: (() => void) | undefined) => void
+      setUnsub: (fn: (() => void) | undefined) => void,
+      setUnsubCustomFoods?: (fn: (() => void) | undefined) => void
     ) => {
-      import("@/lib/firestore").then(({ migrateLogsToCloud, subscribeToCloudLogs }) => {
+      import("@/lib/firestore").then(({ migrateLogsToCloud, subscribeToCloudLogs, fetchCustomFoods, subscribeToCustomFoods }) => {
         const localLogs = getLogs();
         return migrateLogsToCloud(firebaseUser.uid, localLogs, fId).then((merged) => {
           const currentLocal = getLogs();
@@ -86,6 +88,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             }
           }, fId);
           setUnsub(unsub);
+
+          // Fetch + subscribe to custom foods
+          fetchCustomFoods(firebaseUser.uid, fId).then((cloudFoods) => {
+            if (cloudFoods.length > 0) {
+              saveCustomFoods(cloudFoods);
+              window.dispatchEvent(new Event("custom-foods-updated"));
+            }
+          }).catch(() => {});
+
+          const unsubCF = subscribeToCustomFoods(firebaseUser.uid, (cloudFoods) => {
+            saveCustomFoods(cloudFoods);
+            window.dispatchEvent(new Event("custom-foods-updated"));
+          }, fId);
+          setUnsubCustomFoods?.(unsubCF);
         });
       }).catch(() => {});
     },
@@ -100,6 +116,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     let unsubscribe: (() => void) | undefined;
     let unsubscribeSnapshot: (() => void) | undefined;
+    let unsubscribeCustomFoods: (() => void) | undefined;
 
     Promise.all([
       import("@/lib/firebase"),
@@ -119,6 +136,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         unsubscribeSnapshot?.();
         unsubscribeSnapshot = undefined;
+        unsubscribeCustomFoods?.();
+        unsubscribeCustomFoods = undefined;
 
         if (firebaseUser) {
           setCloudMode(firebaseUser.uid);
@@ -144,11 +163,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
               setupCloudSync(firebaseUser, fId, (fn) => {
                 unsubscribeSnapshot = fn;
+              }, (fn) => {
+                unsubscribeCustomFoods = fn;
               });
             }).catch(() => {
               // Failed to fetch family — continue with personal mode
               setupCloudSync(firebaseUser, null, (fn) => {
                 unsubscribeSnapshot = fn;
+              }, (fn) => {
+                unsubscribeCustomFoods = fn;
               });
             });
           });
@@ -158,6 +181,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setFamilyId(null);
           storeBabyName(null);
           setBabyName(null);
+          clearCustomFoods();
         }
       });
     }).catch(() => {
@@ -174,13 +198,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setBabyName(getBabyName());
       });
 
-      // Re-subscribe to the correct collection
+      // Re-subscribe to the correct collections
       unsubscribeSnapshot?.();
       unsubscribeSnapshot = undefined;
+      unsubscribeCustomFoods?.();
+      unsubscribeCustomFoods = undefined;
 
       if (userRef.current) {
         setupCloudSync(userRef.current, newFamilyId, (fn) => {
           unsubscribeSnapshot = fn;
+        }, (fn) => {
+          unsubscribeCustomFoods = fn;
         });
       }
     };
@@ -190,6 +218,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       unsubscribe?.();
       unsubscribeSnapshot?.();
+      unsubscribeCustomFoods?.();
       window.removeEventListener("family-changed", handleFamilyChanged);
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps

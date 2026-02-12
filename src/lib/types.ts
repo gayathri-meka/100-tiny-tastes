@@ -37,3 +37,12 @@ export interface Recipe {
   steps: RecipeStep[];
   note?: string;
 }
+
+export interface CustomFood {
+  id: string;           // "custom-" prefix + generated ID
+  name: string;
+  emoji: string;        // default "🍽️" if not provided
+  category: FoodCategory;
+  deleted?: boolean;    // soft-delete flag
+  createdAt: number;    // Date.now() timestamp
+}

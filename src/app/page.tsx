@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { foods, categoryLabels, categoryOrder } from "@/lib/foods";
+import { foods, getAllFoods, categoryLabels, categoryOrder } from "@/lib/foods";
 import { getTriedFoodIds } from "@/lib/storage";
 import { Food } from "@/lib/types";
 import Link from "next/link";
@@ -13,6 +13,7 @@ export default function HomePage() {
   const router = useRouter();
   const { babyName } = useAuth();
   const [triedIds, setTriedIds] = useState<Set<string>>(new Set());
+  const [allFoods, setAllFoods] = useState<Food[]>(foods);
   const [mounted, setMounted] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerSearch, setPickerSearch] = useState("");
@@ -23,14 +24,22 @@ export default function HomePage() {
   useEffect(() => {
     // Read from localStorage on mount (SSR-safe: can't read during render)
     const syncFromStorage = () => setTriedIds(getTriedFoodIds());
+    const syncFoods = () => {
+      const hiddenRaw = localStorage.getItem("tiny-tastes-hidden-foods");
+      const hiddenIds: Set<string> = hiddenRaw ? new Set(JSON.parse(hiddenRaw)) : new Set();
+      setAllFoods(getAllFoods().filter((f) => !hiddenIds.has(f.id)));
+    };
     syncFromStorage();
+    syncFoods();
     setMounted(true);
 
     window.addEventListener("storage", syncFromStorage);
     window.addEventListener("logs-updated", syncFromStorage);
+    window.addEventListener("custom-foods-updated", syncFoods);
     return () => {
       window.removeEventListener("storage", syncFromStorage);
       window.removeEventListener("logs-updated", syncFromStorage);
+      window.removeEventListener("custom-foods-updated", syncFoods);
     };
   }, []);
 
@@ -41,10 +50,10 @@ export default function HomePage() {
   }, [pickerOpen]);
 
   const filteredFoods = pickerSearch.trim()
-    ? foods.filter((f) =>
+    ? allFoods.filter((f) =>
         f.name.toLowerCase().includes(pickerSearch.toLowerCase())
       )
-    : foods;
+    : allFoods;
 
   const handlePickFood = (foodId: string) => {
     setPickerOpen(false);
@@ -62,11 +71,11 @@ export default function HomePage() {
   };
 
   const triedCount = triedIds.size;
-  const totalCount = foods.length;
+  const totalCount = allFoods.length;
   const progress = totalCount > 0 ? (triedCount / totalCount) * 100 : 0;
 
   const grouped = categoryOrder.reduce<Record<string, Food[]>>((acc, cat) => {
-    acc[cat] = foods.filter((f) => f.category === cat);
+    acc[cat] = allFoods.filter((f) => f.category === cat);
     return acc;
   }, {});
 

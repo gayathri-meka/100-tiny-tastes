@@ -38,17 +38,23 @@ export default function CalendarPage() {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
 
+  const [, setFoodsVersion] = useState(0);
+
   useEffect(() => {
     // Read from localStorage on mount (SSR-safe: can't read during render)
     const syncFromStorage = () => setLogs(getLogs());
     syncFromStorage();
     setMounted(true);
 
+    const syncCustomFoods = () => setFoodsVersion((v) => v + 1);
+
     window.addEventListener("logs-updated", syncFromStorage);
     window.addEventListener("storage", syncFromStorage);
+    window.addEventListener("custom-foods-updated", syncCustomFoods);
     return () => {
       window.removeEventListener("logs-updated", syncFromStorage);
       window.removeEventListener("storage", syncFromStorage);
+      window.removeEventListener("custom-foods-updated", syncCustomFoods);
     };
   }, []);
 

@@ -22,22 +22,34 @@ type TabId = "log" | "recipe" | "history";
 
 export default function FoodDetail({ id }: { id: string }) {
   const router = useRouter();
-  const food = getFoodById(id);
+  const [food, setFood] = useState(() => getFoodById(id));
   const [activeTab, setActiveTab] = useState<TabId>("log");
   const [logs, setLogs] = useState<FoodLog[]>([]);
   const [mounted, setMounted] = useState(false);
 
+  const isCustom = id.startsWith("custom-");
+
   useEffect(() => {
     // Read from localStorage on mount (SSR-safe: can't read during render)
+    const currentFood = getFoodById(id);
+    setFood(currentFood);
     const syncFromStorage = () => {
-      if (food) setLogs(getLogsForFood(food.id));
+      if (currentFood) setLogs(getLogsForFood(currentFood.id));
     };
     syncFromStorage();
     setMounted(true);
 
+    const syncCustomFoods = () => {
+      setFood(getFoodById(id));
+    };
+
     window.addEventListener("logs-updated", syncFromStorage);
-    return () => window.removeEventListener("logs-updated", syncFromStorage);
-  }, [food]);
+    window.addEventListener("custom-foods-updated", syncCustomFoods);
+    return () => {
+      window.removeEventListener("logs-updated", syncFromStorage);
+      window.removeEventListener("custom-foods-updated", syncCustomFoods);
+    };
+  }, [id]);
 
   if (!food) {
     return (
@@ -47,11 +59,16 @@ export default function FoodDetail({ id }: { id: string }) {
     );
   }
 
-  const tabs: { id: TabId; label: string }[] = [
-    { id: "log", label: "Log" },
-    { id: "recipe", label: "Recipe" },
-    { id: "history", label: "History" },
-  ];
+  const tabs: { id: TabId; label: string }[] = isCustom
+    ? [
+        { id: "log", label: "Log" },
+        { id: "history", label: "History" },
+      ]
+    : [
+        { id: "log", label: "Log" },
+        { id: "recipe", label: "Recipe" },
+        { id: "history", label: "History" },
+      ];
 
   const handleLogSaved = () => {
     setLogs(getLogsForFood(food.id));
