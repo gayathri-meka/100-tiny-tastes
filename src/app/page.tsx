@@ -172,7 +172,7 @@ export default function HomePage() {
       )}
 
       {/* Filter Chips */}
-      <div className="flex gap-2 mb-4">
+      <div className="flex gap-2 mb-4 justify-center">
         {([
           { key: "all", label: "All" },
           { key: "tried", label: "Tried" },

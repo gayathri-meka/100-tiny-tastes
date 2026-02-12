@@ -34,7 +34,7 @@ export default function RootLayout({
         <link rel="icon" href="/icon.svg" type="image/svg+xml" />
         <link rel="apple-touch-icon" href="/icon-192.png" />
       </head>
-      <body className="min-h-dvh pb-20">
+      <body className="min-h-dvh pb-28">
         <ErrorBoundary>
           <AuthProvider>
             <main className="max-w-lg mx-auto">{children}</main>
