@@ -107,6 +107,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     ]).then(([{ getFirebaseAuth }, { onAuthStateChanged }]) => {
       const auth = getFirebaseAuth();
 
+      // Handle redirect result from mobile sign-in
+      import("firebase/auth").then(({ getRedirectResult }) => {
+        getRedirectResult(auth).catch(() => {});
+      });
+
       unsubscribe = onAuthStateChanged(auth, (firebaseUser: User | null) => {
         setUser(firebaseUser);
         userRef.current = firebaseUser;
@@ -192,10 +197,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signIn = useCallback(async () => {
     try {
       const { getFirebaseAuth } = await import("@/lib/firebase");
-      const { GoogleAuthProvider, signInWithPopup } = await import("firebase/auth");
+      const { GoogleAuthProvider, signInWithPopup, signInWithRedirect } = await import("firebase/auth");
       const auth = getFirebaseAuth();
       const provider = new GoogleAuthProvider();
-      await signInWithPopup(auth, provider);
+      // Mobile browsers block popups and have storage partitioning issues
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+      if (isMobile) {
+        await signInWithRedirect(auth, provider);
+      } else {
+        await signInWithPopup(auth, provider);
+      }
     } catch (error) {
       if (
         error instanceof Error &&
