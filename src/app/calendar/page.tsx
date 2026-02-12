@@ -24,6 +24,12 @@ const MONTH_NAMES = [
 
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
+const REACTION_EMOJI: Record<string, string> = {
+  liked: "\u{1F60B}",
+  neutral: "\u{1F610}",
+  rejected: "\u{1F645}",
+};
+
 export default function CalendarPage() {
   const today = new Date();
   const [year, setYear] = useState(today.getFullYear());
@@ -33,15 +39,16 @@ export default function CalendarPage() {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setLogs(getLogs());
+    // Read from localStorage on mount (SSR-safe: can't read during render)
+    const syncFromStorage = () => setLogs(getLogs());
+    syncFromStorage();
     setMounted(true);
 
-    const onUpdate = () => setLogs(getLogs());
-    window.addEventListener("logs-updated", onUpdate);
-    window.addEventListener("storage", onUpdate);
+    window.addEventListener("logs-updated", syncFromStorage);
+    window.addEventListener("storage", syncFromStorage);
     return () => {
-      window.removeEventListener("logs-updated", onUpdate);
-      window.removeEventListener("storage", onUpdate);
+      window.removeEventListener("logs-updated", syncFromStorage);
+      window.removeEventListener("storage", syncFromStorage);
     };
   }, []);
 
@@ -87,9 +94,6 @@ export default function CalendarPage() {
 
   return (
     <div className="px-4 pt-6 pb-4">
-      {/* Header */}
-      <h1 className="text-xl font-bold text-stone-800 mb-4">Calendar</h1>
-
       {/* Month Navigation */}
       <div className="flex items-center justify-between mb-3">
         <button
@@ -104,9 +108,9 @@ export default function CalendarPage() {
             />
           </svg>
         </button>
-        <h2 className="text-sm font-semibold text-stone-700">
+        <h1 className="text-lg font-bold text-stone-800">
           {MONTH_NAMES[month]} {year}
-        </h2>
+        </h1>
         <button
           onClick={nextMonth}
           className="p-2 rounded-lg hover:bg-warm-100 text-stone-500"
@@ -137,7 +141,7 @@ export default function CalendarPage() {
       <div className="grid grid-cols-7 gap-px bg-warm-100 rounded-lg overflow-hidden border border-warm-100">
         {/* Empty cells for offset */}
         {Array.from({ length: firstDay }).map((_, i) => (
-          <div key={`empty-${i}`} className="bg-warm-50 h-14" />
+          <div key={`empty-${i}`} className="bg-warm-50 h-16" />
         ))}
 
         {/* Day cells */}
@@ -166,7 +170,7 @@ export default function CalendarPage() {
               onClick={() =>
                 setSelectedDate(isSelected ? null : dateKey)
               }
-              className={`h-14 flex flex-col items-center justify-start pt-1 relative transition-colors ${
+              className={`h-16 flex flex-col items-center justify-start pt-1.5 relative transition-colors ${
                 isSelected
                   ? "bg-warm-200"
                   : isToday
@@ -184,9 +188,9 @@ export default function CalendarPage() {
                 {day}
               </span>
               {uniqueFoods.length > 0 && (
-                <div className="flex items-center gap-px mt-0.5 flex-wrap justify-center">
+                <div className="flex items-center gap-0.5 mt-1 flex-wrap justify-center">
                   {uniqueFoods.slice(0, 3).map((f) => (
-                    <span key={f.id} className="text-[10px] leading-none">
+                    <span key={f.id} className="text-xs leading-none">
                       {f.emoji}
                     </span>
                   ))}
@@ -205,7 +209,7 @@ export default function CalendarPage() {
         {Array.from({
           length: (7 - ((firstDay + daysInMonth) % 7)) % 7,
         }).map((_, i) => (
-          <div key={`trail-${i}`} className="bg-warm-50 h-14" />
+          <div key={`trail-${i}`} className="bg-warm-50 h-16" />
         ))}
       </div>
 
@@ -228,11 +232,6 @@ export default function CalendarPage() {
               {selectedLogs.map((log) => {
                 const food = getFoodById(log.foodId);
                 if (!food) return null;
-                const reactionEmoji: Record<string, string> = {
-                  liked: "😋",
-                  neutral: "😐",
-                  rejected: "🙅",
-                };
                 return (
                   <div
                     key={log.id}
@@ -254,7 +253,7 @@ export default function CalendarPage() {
                       </div>
                     </div>
                     <span className="text-lg">
-                      {reactionEmoji[log.reaction]}
+                      {REACTION_EMOJI[log.reaction]}
                     </span>
                   </div>
                 );

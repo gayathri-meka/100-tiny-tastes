@@ -16,6 +16,7 @@ export default function HomePage() {
   const [mounted, setMounted] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerSearch, setPickerSearch] = useState("");
+  const [filter, setFilter] = useState<"all" | "tried" | "not-tried">("all");
   const searchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -170,14 +171,42 @@ export default function HomePage() {
         </div>
       )}
 
+      {/* Filter Chips */}
+      <div className="flex gap-2 mb-4">
+        {([
+          { key: "all", label: "All" },
+          { key: "tried", label: "Tried" },
+          { key: "not-tried", label: "Not tried" },
+        ] as const).map((f) => (
+          <button
+            key={f.key}
+            onClick={() => setFilter(f.key)}
+            className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+              filter === f.key
+                ? "bg-warm-500 text-white"
+                : "bg-white text-stone-500 border border-warm-200 hover:border-warm-300"
+            }`}
+          >
+            {f.label}
+          </button>
+        ))}
+      </div>
+
       {/* Food Grid by Category */}
-      {categoryOrder.map((cat) => (
+      {categoryOrder.map((cat) => {
+        const filtered = grouped[cat].filter((food) => {
+          if (filter === "tried") return triedIds.has(food.id);
+          if (filter === "not-tried") return !triedIds.has(food.id);
+          return true;
+        });
+        if (filtered.length === 0) return null;
+        return (
         <div key={cat} className="mb-4">
           <h2 className="text-xs font-semibold text-stone-400 uppercase tracking-wider mb-2">
             {categoryLabels[cat]}
           </h2>
           <div className="grid grid-cols-4 gap-2">
-            {grouped[cat].map((food) => {
+            {filtered.map((food) => {
               const tried = triedIds.has(food.id);
               return (
                 <Link
@@ -217,7 +246,8 @@ export default function HomePage() {
             })}
           </div>
         </div>
-      ))}
+        );
+      })}
 
     </div>
   );
