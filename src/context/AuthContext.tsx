@@ -200,9 +200,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { GoogleAuthProvider, signInWithPopup, signInWithRedirect } = await import("firebase/auth");
       const auth = getFirebaseAuth();
       const provider = new GoogleAuthProvider();
-      // Mobile browsers block popups and have storage partitioning issues
       const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-      if (isMobile) {
+      const isStandalone = window.matchMedia("(display-mode: standalone)").matches
+        || ("standalone" in navigator && (navigator as { standalone?: boolean }).standalone === true);
+      // Standalone PWA: redirect breaks (opens system browser), so use popup
+      // Mobile browser: popups get blocked / storage partitioning, so use redirect
+      // Desktop: use popup
+      if (isMobile && !isStandalone) {
         await signInWithRedirect(auth, provider);
       } else {
         await signInWithPopup(auth, provider);
