@@ -1,4 +1,4 @@
-import { Food } from "./types";
+import { Food, FoodCategory } from "./types";
 
 export const foods: Food[] = [
   // Fruits (20)
@@ -108,7 +108,7 @@ export const foods: Food[] = [
   { id: "ginger", name: "Ginger", emoji: "🫚", category: "other" },
 ];
 
-export const categoryLabels: Record<string, string> = {
+export const categoryLabels: Record<FoodCategory, string> = {
   fruits: "Fruits",
   vegetables: "Vegetables",
   grains: "Grains & Starches",
@@ -117,7 +117,7 @@ export const categoryLabels: Record<string, string> = {
   other: "Herbs, Spices & Oils",
 };
 
-export const categoryOrder: string[] = [
+export const categoryOrder: FoodCategory[] = [
   "fruits",
   "vegetables",
   "grains",

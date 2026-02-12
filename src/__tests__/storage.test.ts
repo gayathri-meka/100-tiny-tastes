@@ -1,4 +1,4 @@
-import { getLogs, addLog, deleteLog, getLogsForFood, getTriedFoodIds, saveLogs, generateId, isPendingPush, isPendingDelete, completePendingPush } from "@/lib/storage";
+import { getLogs, addLog, deleteLog, getLogsForFood, getTriedFoodIds, generateId, isPendingPush, isPendingDelete, completePendingPush } from "@/lib/storage";
 import { FoodLog } from "@/lib/types";
 
 function makeLog(overrides: Partial<FoodLog> = {}): FoodLog {

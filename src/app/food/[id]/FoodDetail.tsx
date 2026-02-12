@@ -28,16 +28,15 @@ export default function FoodDetail({ id }: { id: string }) {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    if (food) {
-      setLogs(getLogsForFood(food.id));
-    }
-    setMounted(true);
-
-    const onUpdate = () => {
+    // Read from localStorage on mount (SSR-safe: can't read during render)
+    const syncFromStorage = () => {
       if (food) setLogs(getLogsForFood(food.id));
     };
-    window.addEventListener("logs-updated", onUpdate);
-    return () => window.removeEventListener("logs-updated", onUpdate);
+    syncFromStorage();
+    setMounted(true);
+
+    window.addEventListener("logs-updated", syncFromStorage);
+    return () => window.removeEventListener("logs-updated", syncFromStorage);
   }, [food]);
 
   if (!food) {
@@ -363,7 +362,6 @@ function HistoryTab({
     deleteLog(logId);
     setConfirmId(null);
     onDeleted();
-    window.dispatchEvent(new Event("logs-updated"));
   };
 
   return (

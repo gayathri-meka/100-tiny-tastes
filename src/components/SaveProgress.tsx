@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { isFirebaseConfigured } from "@/lib/firebase-config";
 
@@ -14,15 +15,48 @@ function GoogleIcon() {
   );
 }
 
+function Spinner() {
+  return (
+    <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
+      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+    </svg>
+  );
+}
+
 export function SaveProgress() {
   const { user, loading, signIn, signOut } = useAuth();
+  const [busy, setBusy] = useState(false);
 
   if (!isFirebaseConfigured() || loading) return null;
+
+  const handleSignIn = async () => {
+    setBusy(true);
+    try {
+      await signIn();
+    } catch {
+      // handled in AuthContext
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleSignOut = async () => {
+    setBusy(true);
+    try {
+      await signOut();
+    } catch {
+      // handled in AuthContext
+    } finally {
+      setBusy(false);
+    }
+  };
 
   if (user) {
     return (
       <div className="flex items-center gap-3 px-4 py-3 bg-sage-50 rounded-xl border border-sage-200 text-sm mb-5">
         {user.photoURL && (
+          /* eslint-disable-next-line @next/next/no-img-element */
           <img
             src={user.photoURL}
             alt=""
@@ -37,10 +71,11 @@ export function SaveProgress() {
           <p className="text-xs text-sage-500">Progress saved to Google</p>
         </div>
         <button
-          onClick={() => signOut().catch(() => {})}
-          className="text-xs text-stone-400 hover:text-stone-600 transition-colors shrink-0"
+          onClick={handleSignOut}
+          disabled={busy}
+          className="text-xs text-stone-400 hover:text-stone-600 transition-colors shrink-0 disabled:opacity-50"
         >
-          Sign out
+          {busy ? <Spinner /> : "Sign out"}
         </button>
       </div>
     );
@@ -48,11 +83,12 @@ export function SaveProgress() {
 
   return (
     <button
-      onClick={() => signIn().catch(() => {})}
-      className="w-full flex items-center justify-center gap-2.5 px-4 py-3 bg-white rounded-xl border border-warm-200 hover:border-warm-300 text-sm text-stone-600 hover:text-stone-800 transition-colors mb-5"
+      onClick={handleSignIn}
+      disabled={busy}
+      className="w-full flex items-center justify-center gap-2.5 px-4 py-3 bg-white rounded-xl border border-warm-200 hover:border-warm-300 text-sm text-stone-600 hover:text-stone-800 transition-colors mb-5 disabled:opacity-50"
     >
-      <GoogleIcon />
-      Sign in with Google to save your progress
+      {busy ? <Spinner /> : <GoogleIcon />}
+      {busy ? "Signing in..." : "Sign in with Google to save your progress"}
     </button>
   );
 }

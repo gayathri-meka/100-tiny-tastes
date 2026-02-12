@@ -1,7 +1,7 @@
 import { render, screen, act } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import FoodDetail from "@/app/food/[id]/FoodDetail";
-import { getLogs, saveLogs, getTriedFoodIds, getLogsForFood } from "@/lib/storage";
+import { getLogs, saveLogs, getTriedFoodIds } from "@/lib/storage";
 import { FoodLog } from "@/lib/types";
 
 jest.mock("next/navigation");
