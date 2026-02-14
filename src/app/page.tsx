@@ -49,7 +49,7 @@ export default function HomePage() {
     }
   }, [pickerOpen]);
 
-  const filteredFoods = pickerSearch.trim()
+  const pickerFoods = pickerSearch.trim()
     ? allFoods.filter((f) =>
         f.name.toLowerCase().includes(pickerSearch.toLowerCase())
       )
@@ -136,7 +136,7 @@ export default function HomePage() {
           onClick={() => { setPickerOpen(false); setPickerSearch(""); }}
         >
           <div
-            className="bg-white w-full max-w-lg rounded-t-2xl max-h-[70dvh] flex flex-col"
+            className="bg-white w-full max-w-lg rounded-t-2xl h-[70dvh] flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="px-4 pt-4 pb-2 border-b border-warm-100">
@@ -166,14 +166,17 @@ export default function HomePage() {
                 className="w-full px-3 py-2 border border-warm-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-warm-300"
               />
             </div>
-            <div className="overflow-y-auto px-2 py-2">
-              {filteredFoods.length === 0 ? (
-                <p className="text-sm text-stone-400 text-center py-4">
-                  No foods found.
-                </p>
+            <div className="overflow-y-auto px-2 py-2 flex-1">
+              {pickerFoods.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-10 text-center">
+                  <p className="text-sm text-stone-500 font-medium">No foods found</p>
+                  <p className="text-xs text-stone-400 mt-1">
+                    Try a different search or add custom foods in Settings
+                  </p>
+                </div>
               ) : (
                 <div className="grid grid-cols-4 gap-1.5">
-                  {filteredFoods.map((food) => (
+                  {pickerFoods.map((food) => (
                     <button
                       key={food.id}
                       onClick={() => handlePickFood(food.id)}
