@@ -30,19 +30,36 @@ function saveHiddenFoodIds(ids: Set<string>): void {
 // --- Shared UI ---
 
 const FOOD_EMOJIS = [
+  // Fruits
   "\u{1F34E}", "\u{1F34F}", "\u{1F34A}", "\u{1F34B}", "\u{1F34C}", "\u{1F347}", "\u{1F353}", "\u{1FAD0}",
-  "\u{1F352}", "\u{1F351}", "\u{1F34D}", "\u{1F965}", "\u{1F95D}", "\u{1F345}", "\u{1F346}", "\u{1F955}",
-  "\u{1F33D}", "\u{1F336}", "\u{1FAD1}", "\u{1F952}", "\u{1F96C}", "\u{1F966}", "\u{1F9C5}", "\u{1F9C4}",
-  "\u{1F954}", "\u{1F360}", "\u{1F950}", "\u{1F35E}", "\u{1F96F}", "\u{1F9C7}", "\u{1F95E}", "\u{1F9C0}",
-  "\u{1F356}", "\u{1F357}", "\u{1F969}", "\u{1F953}", "\u{1F354}", "\u{1F32D}", "\u{1F32E}", "\u{1F32F}",
-  "\u{1FAD4}", "\u{1F957}", "\u{1F35D}", "\u{1F35C}", "\u{1F372}", "\u{1F35B}", "\u{1F363}", "\u{1F364}",
-  "\u{1F99E}", "\u{1F980}", "\u{1F95B}", "\u{1FAD8}", "\u{1F95A}", "\u{1F36F}", "\u{1F370}", "\u{1F36A}",
-  "\u{1F968}", "\u{1F96A}", "\u{1FAD3}", "\u{1F37D}\u{FE0F}",
+  "\u{1F352}", "\u{1F351}", "\u{1F34D}", "\u{1F965}", "\u{1F95D}", "\u{1F345}", "\u{1F348}", "\u{1F349}",
+  "\u{1F34B}\u{200D}\u{1F7E9}", "\u{1FAD2}", "\u{1F330}", "\u{1F33E}",
+  // Vegetables
+  "\u{1F346}", "\u{1F955}", "\u{1F33D}", "\u{1F336}", "\u{1FAD1}", "\u{1F952}", "\u{1F96C}", "\u{1F966}",
+  "\u{1F9C5}", "\u{1F9C4}", "\u{1F954}", "\u{1F360}", "\u{1F95C}", "\u{1FAD8}", "\u{1FAD9}",
+  // Grains, bread & baked
+  "\u{1F35A}", "\u{1F358}", "\u{1F359}", "\u{1F371}", "\u{1F35E}", "\u{1F956}", "\u{1F950}", "\u{1F96F}",
+  "\u{1F968}", "\u{1FAD3}", "\u{1F9C7}", "\u{1F95E}",
+  // Dairy & eggs
+  "\u{1F9C0}", "\u{1F95B}", "\u{1F95A}", "\u{1F9C8}",
+  // Meat, seafood & protein
+  "\u{1F356}", "\u{1F357}", "\u{1F969}", "\u{1F953}", "\u{1F99E}", "\u{1F980}", "\u{1F364}",
+  // Fast food & mains
+  "\u{1F354}", "\u{1F35F}", "\u{1F355}", "\u{1F32D}", "\u{1F32E}", "\u{1F32F}", "\u{1FAD4}", "\u{1F96A}",
+  "\u{1F959}", "\u{1F35D}", "\u{1F35C}", "\u{1F372}", "\u{1F35B}", "\u{1F363}", "\u{1F95F}",
+  "\u{1F957}", "\u{1F373}", "\u{1F371}", "\u{1F96B}", "\u{1F37D}\u{FE0F}",
+  // Sweets & desserts
+  "\u{1F36F}", "\u{1F370}", "\u{1F36A}", "\u{1F9C1}", "\u{1F967}", "\u{1F36B}", "\u{1F36C}", "\u{1F36D}",
+  "\u{1F369}", "\u{1F366}", "\u{1F368}", "\u{1F382}", "\u{1F36E}",
+  // Drinks & other
+  "\u{2615}", "\u{1F375}", "\u{1F376}", "\u{1FAD6}", "\u{1F37C}", "\u{1F9C3}", "\u{1F9CA}", "\u{1F9C9}",
 ];
 
 function EmojiPicker({ value, onChange }: { value: string; onChange: (emoji: string) => void }) {
   const [open, setOpen] = useState(false);
+  const [openUpward, setOpenUpward] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -53,17 +70,27 @@ function EmojiPicker({ value, onChange }: { value: string; onChange: (emoji: str
     return () => document.removeEventListener("mousedown", handleClick);
   }, [open]);
 
+  const handleOpen = () => {
+    if (!open && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      setOpenUpward(spaceBelow < 220);
+    }
+    setOpen(!open);
+  };
+
   return (
     <div className="relative" ref={ref}>
       <button
+        ref={buttonRef}
         type="button"
-        onClick={() => setOpen(!open)}
+        onClick={handleOpen}
         className="w-11 h-[38px] flex items-center justify-center border border-warm-200 rounded-lg bg-white text-xl hover:bg-warm-50 transition-colors focus:outline-none focus:ring-2 focus:ring-warm-300"
       >
         {value || "\u{1F37D}\u{FE0F}"}
       </button>
       {open && (
-        <div className="absolute right-0 top-full mt-1 z-50 bg-white border border-warm-200 rounded-xl shadow-lg p-2 w-64 max-h-48 overflow-y-auto">
+        <div className={`absolute right-0 z-50 bg-white border border-warm-200 rounded-xl shadow-lg p-2 w-64 max-h-52 overflow-y-auto ${openUpward ? "bottom-full mb-1" : "top-full mt-1"}`}>
           <div className="grid grid-cols-8 gap-1">
             {FOOD_EMOJIS.map((e) => (
               <button
